@@ -1,41 +1,67 @@
 package com.example.news_app
 
-import android.os.Bundle
-import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
+import android.os.Bundle
+import android.util.Log
+import androidx.core.view.isVisible
 import com.example.news_app.databinding.ActivityMainBinding
+import com.maad.whatnow.Article
+import com.maad.whatnow.News
+import com.maad.whatnow.NewsAdapter
+import com.maad.whatnow.NewsCallable
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 
 class MainActivity : AppCompatActivity() {
+
     private lateinit var binding: ActivityMainBinding
-    private lateinit var newsRepository: NewsRepository
-    private val apiKey = "13761077ff5448c5bdedfb779e881639"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            val scale = resources.displayMetrics.density
-            val desiredPx = (16 * scale + 0.5f).toInt()
-            v.setPadding(
-                systemBars.left + desiredPx,
-                systemBars.top + desiredPx,
-                systemBars.right + desiredPx,
-                systemBars.bottom
-            )
-            insets
-        }
+        loadNews()
 
-        newsRepository = NewsRepository(apiKey, "us", binding)
-        newsRepository.fetchWeatherData { news ->
-            if (news != null) {
-
-            }
-        }
+        binding.SwipeRef.setOnRefreshListener { loadNews() }
 
     }
+
+    private fun loadNews() {
+        val retrofit = Retrofit
+            .Builder()
+            .baseUrl("https://newsapi.org")
+            .addConverterFactory(GsonConverterFactory.create())
+            .build()
+
+        val c = retrofit.create(NewsCallable::class.java)
+        c.getNews().enqueue(object : Callback<News> {
+            override fun onResponse(call: Call<News>, response: Response<News>) {
+                if (response.isSuccessful && response.body() != null) {
+                    val articles = response.body()?.articles ?: ArrayList()
+                    articles.removeAll { it.title == "[Removed]" }
+                    showNews(articles)
+                } else {
+                    Log.d("trace", "Response failed: ${response.errorBody()?.string()}")
+                }
+                binding.progressBar.isVisible = false
+                binding.SwipeRef.isRefreshing = false
+            }
+
+
+            override fun onFailure(call: Call<News>, t: Throwable) {
+                Log.d("trace", "Error: ${t.message}")
+                binding.progressBar.isVisible = false
+                binding.SwipeRef.isRefreshing = false
+            }
+        })
+    }
+
+    private fun showNews(articles: ArrayList<Article>) {
+        val adapter = NewsAdapter(this, articles)
+        binding.newsRecyclerView.adapter = adapter
+    }
+
 }

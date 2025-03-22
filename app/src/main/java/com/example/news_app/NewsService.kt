@@ -1,14 +1,11 @@
-package com.example.news_app
+package com.maad.whatnow
 
 import retrofit2.Call
 import retrofit2.http.GET
-import retrofit2.http.Query
 
-interface NewsService {
-    @GET("top-headlines")
-    fun getHeadlines(
-        @Query("apikey") apiKey: String,
-        @Query("country") country: String,
-        @Query("pageSize") pageSize: Int = 40
-    ): Call<News>
+interface NewsCallable {
+
+    @GET("/v2/top-headlines?country=us&category=general&apiKey=13761077ff5448c5bdedfb779e881639&pageSize=30")
+    fun getNews(): Call<News>
+
 }
